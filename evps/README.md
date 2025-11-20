@@ -104,3 +104,33 @@ The tests validate the schema of the most recent ETA and conflict CSV files.
 
 All raw and processed datasets are written under `data/` but excluded from Git via
 `.gitignore`. Keep personal runs out of version control to preserve repository hygiene.
+
+## Phase 2 (ML Pipeline)
+
+Quickstart for preprocessing, training, and evaluating the ETA predictor (LSTM) and conflict minimizer (Decision Tree):
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python src/ml/preprocess_eta.py --seq-len 10 --horizon 1
+python src/ml/preprocess_conflict.py --q-thresh 15 --moving-frac 0.25
+python src/ml/train_eta_lstm.py
+python src/ml/train_conflict_dt.py
+python src/ml/evaluate_models.py
+```
+
+Or run end-to-end:
+
+```bash
+bash scripts/run_phase2.sh
+```
+
+Artifacts are written to `artifacts/` and `models/`, with processed datasets under `data/processed/`.
+
+### Phase 2 Metrics (example run)
+| Model | MAE | RMSE | Precision | Recall |
+| --- | --- | --- | --- | --- |
+| ETA Predictor (LSTM) | see `artifacts/metrics/eta_metrics.json` | see `artifacts/metrics/eta_metrics.json` | N/A | N/A |
+| Conflict Minimizer (Decision Tree) | N/A | N/A | see `artifacts/metrics/conflict_metrics.json` | see `artifacts/metrics/conflict_metrics.json` |
