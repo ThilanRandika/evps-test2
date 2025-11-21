@@ -78,23 +78,47 @@ def generate_routes(net_file: Path, route_file: Path, seed: int, vph: int) -> No
 
 
 def build_ev_route(net_file: Path, seed: int) -> List[str]:
+    """
+    Build a deterministic EV route using SUMO's shortest path.
+    Returns a list of edge IDs.
+    """
     network = net.readNet(str(net_file))
     rng = random.Random(seed)
-    candidate_edges = [edge for edge in network.getEdges() if edge.getFunction() not in {"internal"}]
+
+    # Choose valid candidate edges (exclude internal)
+    candidate_edges = [
+        edge for edge in network.getEdges()
+        if edge.getFunction() not in {"internal"}
+    ]
+
     if len(candidate_edges) < 2:
         raise RuntimeError("Network is too small to build an emergency route")
 
+    # Random but deterministic start + end edges
     start_edge = rng.choice(candidate_edges)
-    end_edge = rng.choice([edge for edge in candidate_edges if edge.getID() != start_edge.getID()])
-    _, edge_path = network.getShortestPath(start_edge, end_edge)
-    route_edge_ids: List[str] = []
-    if edge_path:
-        route_edge_ids = [edge.getID() for edge in edge_path]
-    if not route_edge_ids or route_edge_ids[0] != start_edge.getID():
+    end_edge = rng.choice([e for e in candidate_edges if e.getID() != start_edge.getID()])
+
+    # --- FIXED: Correct unpacking ---
+    path_edges, path_length = network.getShortestPath(start_edge, end_edge)
+
+    # Ensure we have a valid path
+    if not path_edges:
+        raise RuntimeError(
+            f"Shortest path failed between {start_edge.getID()} and {end_edge.getID()}"
+        )
+
+    # Convert edge objects → edge IDs
+    route_edge_ids = [edge.getID() for edge in path_edges]
+
+    # Safety corrections (should rarely trigger)
+    if route_edge_ids[0] != start_edge.getID():
         route_edge_ids.insert(0, start_edge.getID())
+
     if route_edge_ids[-1] != end_edge.getID():
         route_edge_ids.append(end_edge.getID())
+
     return route_edge_ids
+
 
 
 def inject_emergency_vehicle(route_file: Path, net_file: Path, seed: int, ev_prefix: str) -> None:
